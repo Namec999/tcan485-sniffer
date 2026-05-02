@@ -17,19 +17,27 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install PlatformIO
-        run: pip install platformio
+      - name: Install PlatformIO and esptool
+        run: pip install platformio esptool
 
       - name: Build firmware
         run: pio run
 
-      - name: Rename binary
+      - name: Merge into single flashable binary
         run: |
-          cp .pio/build/tcan485/firmware.bin TCAN485_J1939_Sniffer_250k.bin
+          esptool.py --chip esp32 merge_bin \
+            -o TCAN485_J1939_Sniffer_MERGED.bin \
+            --flash_mode dio \
+            --flash_freq 40m \
+            --flash_size 4MB \
+            0x1000  .pio/build/tcan485/bootloader.bin \
+            0x8000  .pio/build/tcan485/partitions.bin \
+            0xe000  ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+            0x10000 .pio/build/tcan485/firmware.bin
 
-      - name: Upload firmware artifact
+      - name: Upload merged firmware
         uses: actions/upload-artifact@v4
         with:
           name: TCAN485-firmware
-          path: TCAN485_J1939_Sniffer_250k.bin
+          path: TCAN485_J1939_Sniffer_MERGED.bin
           retention-days: 30
